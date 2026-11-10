@@ -1,0 +1,22 @@
+{
+  "name": "equipaya-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Servidor de Equipaya: ventas en vivo y lectura de planos",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node prueba-en-vivo.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "firebase-admin": "^12.7.0",
+    "socket.io": "4.7.5"
+  },
+  "devDependencies": {
+    "socket.io-client": "4.7.5"
+  }
+}

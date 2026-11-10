@@ -1,0 +1,22 @@
+# Render Blueprint: crea el servidor de Equipaya con un clic (New → Blueprint)
+services:
+  - type: web
+    name: equipaya-server
+    runtime: node
+    rootDir: server
+    buildCommand: npm install --omit=dev
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: LIVE_ADMIN_KEY
+        generateValue: true
+      - key: LIVE_ORIGINS
+        sync: false
+      - key: FIREBASE_SERVICE_ACCOUNT
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: LIVE_REQUIRE_AUTH
+        value: "0"
