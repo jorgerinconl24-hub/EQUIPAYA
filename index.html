@@ -113,6 +113,11 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
 .meta{font-size:11px;color:var(--muted);display:flex;gap:6px;align-items:center}
 .meta .star{color:#E9A100}
 .loader{text-align:center;color:var(--muted);padding:18px;font-size:12px}
+.ask{background:var(--card);border-radius:16px;padding:14px;border:1.5px solid var(--sun)}
+.ask h4{font-family:var(--display);font-size:17px;margin-bottom:4px}
+.ask p{font-size:12px;color:var(--muted);margin-bottom:10px}
+.ask .opts{display:flex;flex-wrap:wrap;gap:8px}
+.ask .skip{font-size:12px;color:var(--muted);font-weight:600;margin-top:10px;text-decoration:underline}
 
 /* Bottom nav */
 .nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:520px;background:#fff;border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(5,1fr);padding:6px 0 calc(6px + env(safe-area-inset-bottom));z-index:30}
@@ -368,6 +373,13 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
 
   <div class="sec"><div class="biz" id="biz"></div></div>
 
+  <div class="sec" id="askBiz" hidden><div class="ask">
+    <h4>¿Qué negocio vas a montar?</h4>
+    <p>Así te mostramos primero lo que necesitas.</p>
+    <div class="opts" id="askOpts"></div>
+    <button class="skip" id="askSkip">Solo estoy viendo</button>
+  </div></div>
+
   <div class="feed-h"><h3 id="feedTitle">Recomendado para ti</h3><small id="feedCount"></small></div>
   <div class="feed" id="feed"><div class="col" id="colA"></div><div class="col" id="colB"></div></div>
   <div class="loader" id="loader">Cargando más productos…</div>
@@ -426,7 +438,7 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
   </div>
   <div class="box list">
     <a href="local.html">Ver mi negocio en 2D y 3D <span style="color:var(--muted)">›</span></a>
-    <div>Mis tipos de negocio <span style="color:var(--muted)">Bodega ›</span></div>
+    <div data-cambiar-negocio style="cursor:pointer">Mi tipo de negocio <span style="color:var(--muted)" id="meNeg">Elegir ›</span></div>
     <div>Direcciones de entrega <span style="color:var(--muted)">›</span></div>
     <div>Precios al mayor <span style="color:var(--muted)">›</span></div>
     <div>Hablar con un asesor <span style="color:var(--muted)">›</span></div>
@@ -490,6 +502,7 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.7/hls.min.js"></script>
+<script src="recomendador.js"></script>
 <script>
 /* ---------- Ilustraciones (SVG originales, sin fotos) ---------- */
 const C={ink:"#0E3B43",fl:"#FF5B2E",sun:"#FFC83D",w:"#fff",g:"#C9D3D0",d:"#5F6B67"};
@@ -567,7 +580,9 @@ const P=[
  ["mod","Maniquí de exhibición de fibra, dama","maniqui","#E6E9EA",55,70,4.5,410,[],["Blanco","Negro"]]
 ];
 const products=P.map((r,i)=>({id:i,dept:r[0],title:r[1],art:r[2],col:r[3],price:r[4],old:r[5],rate:r[6],sold:r[7],tags:r[8],vars:r[9],bg:BG[i%BG.length],h:[150,176,196,164][i%4]}));
-const BIZ=[["Todos",null],["Bodega",["mob","equ","pos","sum","sen"]],["Supermercado",["mob","equ","pos","pis","ilu"]],["Farmacia",["vit","mob","ilu","pos"]],["Boutique",["mod","rev","ilu","vit"]],["Panadería",["vit","equ","pos","sum"]],["Ferretería",["mob","pos","sen","pis"]]];
+const BIZ=[["Todos",null,null],["Bodega",["mob","equ","pos","sum","sen"],"bodega"],["Supermercado",["mob","equ","pos","pis","ilu"],"super"],["Farmacia",["vit","mob","ilu","pos"],"farmacia"],["Boutique",["mod","rev","ilu","vit"],"boutique"],["Panadería",["vit","equ","pos","sum"],"panaderia"],["Ferretería",["mob","pos","sen","pis"],"ferreteria"]];
+/* Recomendador (recomendador.js). Si no cargó, la tienda funciona igual sin personalizar. */
+const RECO=window.Eqy||{registrar(){},impresion(){},ordenar:l=>l,negocio:()=>null,nombreNegocio:()=>"",negocios:()=>[],fijarNegocio(){},omitirNegocio(){},debePreguntar:()=>false};
 
 /* ---------- Estado ---------- */
 let cart=[];try{cart=JSON.parse(localStorage.getItem("eqy_cart")||"[]")}catch(e){}
@@ -609,18 +624,36 @@ function card(p){
 }
 function feed(reset){
   const l=list();
-  if(reset){page=0;$("#colA").innerHTML="";$("#colB").innerHTML="";}
-  const label=filter.q?`Resultados para “${filter.q}”`:filter.dept?DEPTS.find(d=>d.id===filter.dept).name:filter.biz?`Para ${BIZ[filter.biz][0].toLowerCase()}`:"Recomendado para ti";
+  if(reset){page=0;shown=new Set();$("#colA").innerHTML="";$("#colB").innerHTML="";}
+  const neg=RECO.negocio();
+  const label=filter.q?`Resultados para “${filter.q}”`:filter.dept?DEPTS.find(d=>d.id===filter.dept).name:filter.biz?`Para ${BIZ[filter.biz][0].toLowerCase()}`:neg?`Recomendado para tu ${RECO.nombreNegocio().toLowerCase()}`:"Recomendado para ti";
   $("#feedTitle").textContent=label;
   $("#feedCount").textContent=l.length+" productos";
   if(!l.length){$("#colA").innerHTML=`<div class="empty" style="grid-column:1/-1"><b>Sin resultados</b>Prueba con “góndola”, “piso” o “vitrina”.</div>`;$("#loader").textContent="";return;}
-  // feed infinito: repite el catálogo filtrado en orden mezclado por página
-  const batch=[];for(let i=0;i<10;i++){batch.push(l[(page*7+i*3)%l.length]);}
+  // Feed infinito: en cada página el recomendador vuelve a ordenar lo que falta por mostrar,
+  // así lo que el cliente hizo hace un momento ya cambia lo que ve más abajo.
+  let pend=l.filter(p=>!shown.has(p.id));
+  if(!pend.length){shown=new Set();pend=l;}   // ya vio todo: vuelve a empezar
+  const batch=RECO.ordenar(pend).slice(0,10);
+  batch.forEach(p=>shown.add(p.id));
   page++;
   const A=$("#colA"),B=$("#colB");
   batch.forEach(p=>{(A.offsetHeight<=B.offsetHeight?A:B).insertAdjacentHTML("beforeend",card(p));});
+  observarTarjetas();
   $("#loader").textContent=page>=8?"Has visto todo por hoy":"Cargando más productos…";
 }
+/* Impresiones: cuenta cuando una tarjeta se ve en pantalla (para bajar lo que ve mucho y nunca abre) */
+let shown=new Set();
+const obsTarjetas=("IntersectionObserver" in window)?new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){RECO.impresion(+e.target.dataset.pid);obsTarjetas.unobserve(e.target);}}),{threshold:.6}):null;
+function observarTarjetas(){ if(!obsTarjetas)return; document.querySelectorAll("#feed .pc:not([data-obs])").forEach(el=>{el.dataset.obs=1;obsTarjetas.observe(el);}); }
+/* Pregunta de tipo de negocio */
+function askBiz(forzar){
+  const ver=forzar||RECO.debePreguntar();
+  $("#askBiz").hidden=!ver; if(!ver)return;
+  const act=RECO.negocio();
+  $("#askOpts").innerHTML=RECO.negocios().map(n=>`<button class="${n.clave===act?"on":""}" data-neg="${n.clave}">${n.nom}</button>`).join("");
+}
+function meNeg(){ const n=RECO.nombreNegocio(); $("#meNeg").textContent=(n||"Elegir")+" ›"; }
 function newView(){
   const l=products.filter(p=>p.tags.includes("Nuevo")).concat(products.slice(0,8));
   $("#nA").innerHTML="";$("#nB").innerHTML="";
@@ -653,14 +686,17 @@ function cartView(){
   $("#waBtn").href="https://wa.me/?text="+encodeURIComponent(msg);
 }
 function addToCart(id,v,q){
+  RECO.registrar("agregar_carrito",{pid:id,dept:products[id].dept,qty:q});
   const f=cart.find(c=>c.id===id&&c.v===v);
   f?f.qty+=q:cart.push({id,v,qty:q});save();badges();toast("Agregado al carrito ✓");
 }
 function toast(t){const e=$("#toast");e.textContent=t;e.classList.add("on");clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove("on"),1200);}
 
 /* ---------- Ficha de producto ---------- */
+let fichaDesde=0;
 function openSheet(id){
-  const p=products[id];curProd=p;curVar=0;curQty=1;
+  const p=products[id];curProd=p;curVar=0;curQty=1;fichaDesde=Date.now();
+  RECO.registrar("ver_producto",{pid:p.id,dept:p.dept});
   const d=DEPTS.find(x=>x.id===p.dept);
   $("#sheet").innerHTML=`<div class="big" style="background:${p.bg}">${ART[p.art](p.col)}<button class="close" id="closeSheet" aria-label="Cerrar"><svg width="18" height="18" viewBox="0 0 24 24" stroke="#18221F" stroke-width="2.4"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
   <div class="pad">
@@ -679,7 +715,11 @@ function specs(p){
   const base={mob:["Acero laminado en frío con pintura electrostática","Niveles regulables cada 2.5 cm","Se arma con tornillería incluida"],vit:["Vidrio templado de 6 mm","Iluminación LED interna","Cerradura con 2 llaves"],pis:["Alto tránsito comercial","Se vende por metro cuadrado","Calcula 10 % extra por cortes"],ilu:["Bajo consumo, larga vida útil","110 V","Garantía de 1 año"],rev:["Fácil instalación con adhesivo o clavos","Resistente a la humedad","Ideal para fachadas internas y exhibidores"],equ:["Uso comercial continuo","110 V / 60 Hz","Garantía de fábrica"],pos:["Compatible con Windows y Android","Conexión USB","Soporte técnico en Maracaibo"],sum:["Despacho inmediato","Precio especial por volumen"],sen:["Material resistente","Listo para usar"],mod:["Estructura reforzada","Ruedas con freno"]};
   return base[p.dept]||[];
 }
-function closeSheet(){["#scrim","#sheet","#sheetBar"].forEach(s=>$(s).classList.remove("on"));}
+function closeSheet(){
+  if(fichaDesde&&curProd){const seg=(Date.now()-fichaDesde)/1000; if(seg>=2)RECO.registrar("tiempo_ficha",{pid:curProd.id,dept:curProd.dept,seg:Math.min(seg,600)});}
+  fichaDesde=0;
+  ["#scrim","#sheet","#sheetBar"].forEach(s=>$(s).classList.remove("on"));
+}
 
 /* ---------- Navegación ---------- */
 function go(v){
@@ -694,19 +734,23 @@ document.addEventListener("click",e=>{
   const quick=t.closest("[data-quick]"); if(quick){e.stopPropagation();addToCart(+quick.dataset.quick,0,1);return;}
   const g=t.closest("[data-go]"); if(g){go(g.dataset.go);return;}
   const pid=t.closest("[data-pid]"); if(pid){openSheet(+pid.dataset.pid);return;}
-  const dep=t.closest("[data-dept]"); if(dep){filter={dept:dep.dataset.dept||null,biz:null,q:""};$("#q").value="";go("home");tabs();biz();feed(true);document.querySelector(".feed-h").scrollIntoView({behavior:"smooth"});return;}
-  const bz=t.closest("[data-biz]"); if(bz){const i=+bz.dataset.biz;filter={dept:null,biz:i||null,q:""};tabs();biz();feed(true);return;}
+  const dep=t.closest("[data-dept]"); if(dep){filter={dept:dep.dataset.dept||null,biz:null,q:""};if(filter.dept)RECO.registrar("filtrar_depto",{dept:filter.dept});$("#q").value="";go("home");tabs();biz();feed(true);document.querySelector(".feed-h").scrollIntoView({behavior:"smooth"});return;}
+  const bz=t.closest("[data-biz]"); if(bz){const i=+bz.dataset.biz;filter={dept:null,biz:i||null,q:""};if(i)RECO.registrar("filtrar_negocio",{negocio:BIZ[i][2],deptos:BIZ[i][1]});tabs();biz();feed(true);return;}
+  const ng=t.closest("[data-neg]"); if(ng){RECO.fijarNegocio(ng.dataset.neg,"pregunta");$("#askBiz").hidden=true;meNeg();filter={dept:null,biz:null,q:""};tabs();biz();feed(true);toast(`Listo: te mostramos lo de tu ${RECO.nombreNegocio().toLowerCase()}`);return;}
+  if(t.closest("[data-cambiar-negocio]")){go("home");askBiz(true);$("#askBiz").scrollIntoView({behavior:"smooth",block:"center"});return;}
   const r=t.closest("[data-rail]"); if(r){railDept=r.dataset.rail;catView();return;}
   const vr=t.closest("[data-var]"); if(vr){curVar=+vr.dataset.var;document.querySelectorAll("#vars button").forEach(b=>b.classList.toggle("on",b===vr));return;}
   const inc=t.closest("[data-inc]"); if(inc){cart[+inc.dataset.inc].qty++;save();badges();cartView();return;}
-  const dec=t.closest("[data-dec]"); if(dec){const i=+dec.dataset.dec;cart[i].qty--;if(cart[i].qty<1)cart.splice(i,1);save();badges();cartView();return;}
+  const dec=t.closest("[data-dec]"); if(dec){const i=+dec.dataset.dec;cart[i].qty--;if(cart[i].qty<1){const pid=cart[i].id;cart.splice(i,1);if(!cart.some(c=>c.id===pid))RECO.registrar("quitar_carrito",{pid,dept:products[pid].dept});}save();badges();cartView();return;}
   if(t.closest("#qm")){curQty=Math.max(1,curQty-1);$("#qv").textContent=curQty;return;}
   if(t.closest("#qp")){curQty++;$("#qv").textContent=curQty;return;}
   if(t.closest("#closeSheet")||t===$("#scrim")){closeSheet();return;}
 });
+$("#askSkip").onclick=()=>{RECO.omitirNegocio();$("#askBiz").hidden=true;};
 $("#addBtn").onclick=()=>{addToCart(curProd.id,curVar,curQty);closeSheet();};
-$("#buyBtn").onclick=()=>{addToCart(curProd.id,curVar,curQty);go("cart");};
-$("#searchForm").addEventListener("submit",e=>{e.preventDefault();filter={dept:null,biz:null,q:$("#q").value.trim()};tabs();biz();feed(true);document.querySelector(".feed-h").scrollIntoView({behavior:"smooth"});});
+$("#buyBtn").onclick=()=>{addToCart(curProd.id,curVar,curQty);RECO.registrar("comprar_ahora",{pid:curProd.id,dept:curProd.dept,qty:curQty});go("cart");};
+$("#waBtn").addEventListener("click",()=>{cart.forEach(c=>RECO.registrar("pedir_whatsapp",{pid:c.id,dept:products[c.id].dept,qty:c.qty}));});
+$("#searchForm").addEventListener("submit",e=>{e.preventDefault();filter={dept:null,biz:null,q:$("#q").value.trim()};if(filter.q)RECO.registrar("buscar",{q:filter.q});tabs();biz();feed(true);document.querySelector(".feed-h").scrollIntoView({behavior:"smooth"});});
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeSheet();});
 
 /* Feed infinito */
@@ -722,7 +766,9 @@ let s=0;setInterval(()=>{s=(s+1)%3;$("#slides").style.transform=`translateX(-${s
 function tick(){const n=new Date(),m=new Date(n);m.setHours(24,0,0,0);let d=Math.floor((m-n)/1000);const h=String(Math.floor(d/3600)).padStart(2,"0"),mi=String(Math.floor(d%3600/60)).padStart(2,"0"),se=String(d%60).padStart(2,"0");$("#clock").innerHTML=`<span>${h}</span>:<span>${mi}</span>:<span>${se}</span>`;}
 setInterval(tick,1000);tick();
 
-tabs();cats();biz();flash();feed(true);feed(false);badges();
+tabs();cats();biz();flash();askBiz();meNeg();feed(true);feed(false);badges();
+// Cuando llegan los populares de su tipo de negocio, reordena si aún no ha bajado mucho.
+if(window.Eqy)Eqy.cargarPopulares().then(()=>{if(page<=2&&!filter.dept&&!filter.biz&&!filter.q&&window.scrollY<300){feed(true);feed(false);}});
 
 /* ---------- EN VIVO ---------- */
 /* Cambia esta URL si tu servidor está en otra dirección. */
@@ -806,6 +852,7 @@ function liveRender(){
 let R=null;
 function openRoom(id){
  const l=LIVES.find(x=>String(x.id)===String(id)); if(!l) return;
+ RECO.registrar("ver_live",{live:l.id,deptos:[...new Set(l.items.map(it=>products[it.pid]?.dept).filter(Boolean))]});
  R={l,idx:0,likes:Math.floor((l.eye||10)*1.7),eye:l.eye||0,timers:[],sub:null,mine:false,socket:null,yoId:null};
  $("#rBg").style.background=l.bg; $("#rAv").textContent=l.ini; $("#rName").innerHTML=esc(l.seller)+VF; $("#rBiz").textContent=l.biz;
  $("#rChat").innerHTML=""; $("#rLikes").textContent=fmtSold(R.likes); $("#rCount").textContent=l.items.length+" prod."; $("#rFollow").textContent="Seguir";

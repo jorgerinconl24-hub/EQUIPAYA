@@ -200,6 +200,7 @@ label.f input,label.f select{height:42px;border:1.5px solid var(--line);border-r
 </div>
 <div class="toast" id="toast"></div>
 
+<script src="recomendador.js"></script>
 <script type="importmap">
 {"imports":{
   "three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
@@ -612,6 +613,7 @@ $('#bCarrito').onclick=()=>{
   resumen().forEach(([s,q])=>{const id=porSku[s].tienda;if(id===undefined){sin+=q;return;}
     const f=cart.find(c=>c.id===id&&c.v===0);f?f.qty=Math.max(f.qty,q):cart.push({id,v:0,qty:q});n+=q;});
   ls.set('eqy_cart',cart);
+  if(window.Eqy) resumen().forEach(([s,q])=>{const id=porSku[s].tienda;if(id!==undefined)Eqy.registrar('agregar_carrito',{pid:id,qty:q});});
   toast(sin?`${n} muebles al carrito. ${sin} se cotizan aparte por WhatsApp.`:`${n} muebles al carrito`);
 };
 
@@ -635,7 +637,8 @@ const leerMedidas=()=>{
 ['w','l','dw','dpos'].forEach(id=>$('#'+id).addEventListener('change',()=>{
   if(geo&&(id==='w'||id==='l')){geo=null;$('#mPlano').innerHTML='<div class="msg info">Cambiaste las medidas a mano: usamos un local rectangular con esas medidas en vez de la forma del plano.</div>';}
   if(leerMedidas()){ajustar();cambio();}}));
-$('#bArmar').onclick=()=>{if(!leerMedidas())return;armar();$('.viewer').scrollIntoView({behavior:'smooth',block:'start'});};
+$('#bArmar').onclick=()=>{if(!leerMedidas())return;armar();
+  window.Eqy&&Eqy.registrar('local_armado',{negocio,area:room.w*room.l});$('.viewer').scrollIntoView({behavior:'smooth',block:'start'});};
 
 /* ---------- Plano: foto o PDF ---------- */
 $('#bPlano').onclick=()=>$('#fPlano').click();

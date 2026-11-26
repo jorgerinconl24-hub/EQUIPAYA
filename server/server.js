@@ -1,6 +1,7 @@
 /* Servidor de Equipaya
    - /live y /socket.io   Ventas en vivo (chat, subastas, compras, pagos retenidos)
    - /plano/levantar      Lectura de planos con IA para "Ver tu negocio"
+   - /eventos             Recomendador: acciones de los clientes y populares por tipo de negocio
 */
 'use strict';
 
@@ -17,6 +18,8 @@ app.get('/', (_req, res) => res.json({ ok: true, app: 'Equipaya', hora: new Date
 
 app.options('/plano/levantar', levantarLocal);
 app.post('/plano/levantar', levantarLocal);
+
+require('./eventos')({ app, db, admin, express });   // recomendador: eventos y populares por negocio
 
 const server = http.createServer(app);
 require('./live')({ server, app, db, admin, express });
