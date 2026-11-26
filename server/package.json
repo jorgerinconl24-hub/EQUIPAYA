@@ -6,7 +6,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node prueba-en-vivo.js"
+    "test": "node prueba-en-vivo.js",
+    "test:reco": "node prueba-recomendador.js"
   },
   "engines": {
     "node": ">=18"

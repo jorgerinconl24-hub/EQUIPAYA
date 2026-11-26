@@ -7,6 +7,7 @@ Tienda en línea para equipar negocios: mobiliario, pisos, iluminación, revesti
 | Archivo | Qué es |
 |---|---|
 | `index.html` | La tienda: catálogo, ofertas flash, carrito y pedido por WhatsApp, y ventas en vivo |
+| `recomendador.js` | **Recomendador**: registra lo que hace cada cliente y ordena el feed "Recomendado para ti" según su tipo de negocio y sus gustos |
 | `local.html` | **Ver tu negocio**: medidas o plano, tipo de negocio, armado automático y vista 2D y 3D |
 | `host.html` | Panel del vendedor para las ventas en vivo, y panel de los agentes para crear transmisiones |
 | `server/` | Servidor (Node + Express + Socket.IO) para las ventas en vivo y la lectura de planos con IA |
@@ -28,13 +29,28 @@ Tienda en línea para equipar negocios: mobiliario, pisos, iluminación, revesti
    - `LIVE_ADMIN_KEY` se genera sola. Cópiala de Render: es la clave de los agentes para crear en vivos.
 3. Si Render le pone otro nombre al servicio, cambia la dirección `https://equipaya-server.onrender.com` en `index.html`, `local.html` y `host.html`.
 
+## Recomendador (fase 1)
+
+El feed "Recomendado para ti" se ordena para cada cliente según:
+
+- El **tipo de negocio** que va a montar (se le pregunta al entrar; también lo toma de "Ver tu negocio").
+- Lo que ve, cuánto tiempo mira cada producto, lo que agrega al carrito y lo que pide por WhatsApp. Los gustos viejos pierden fuerza con el tiempo.
+- **Complementos**: si tiene vitrinas en el carrito, le sube iluminación y revestimientos.
+- Lo que más piden **otros negocios como el suyo** (lo calcula el servidor en `/eventos/populares`).
+- Baja lo que ya pidió (menos los suministros, que se recompran) y lo que ve muchas veces sin abrir.
+
+Todo lo que hace cada cliente se guarda en Firestore (colección `eventos`), sin nombre ni teléfono. Esa data es la base para la fase 2 y la fase 3.
+
+Las reglas están arriba de `recomendador.js` (`NEGOCIOS`, `COMPLEMENTOS`, `PESOS`, `W`) para ajustarlas con la experiencia del equipo. Para ver por qué un producto sale donde sale, abre la consola del navegador y escribe `Eqy.explicar(products[6])`.
+
 ## Probar el servidor en tu computadora
 
 ```bash
 cd server
 npm install
-npm test      # prueba completa de ventas en vivo (sin Firebase, base en memoria)
-npm start     # servidor en http://localhost:3000
+npm test           # prueba completa de ventas en vivo (sin Firebase, base en memoria)
+npm run test:reco  # prueba del recomendador
+npm start          # servidor en http://localhost:3000
 ```
 
 ## Pendiente
